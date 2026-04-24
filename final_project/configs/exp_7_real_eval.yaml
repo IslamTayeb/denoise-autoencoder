@@ -1,0 +1,12 @@
+seed: 0
+window_len: 128
+output_dir: results/exp_7_real_eval
+data:
+  articles: ["Influenza", "Common_cold", "Fever", "Cough", "Christmas"]
+  start: "2018-01-01"
+  end: null
+noise_kind: auto
+model:
+  name: auto
+  latent_dim: auto
+checkpoint: auto

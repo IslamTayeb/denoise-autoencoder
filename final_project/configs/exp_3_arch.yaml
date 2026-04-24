@@ -1,0 +1,19 @@
+seed: 0
+window_len: 128
+output_dir: results/exp_3_arch
+data:
+  articles: ["Influenza", "Common_cold", "Fever", "Cough", "Christmas"]
+  start: "2018-01-01"
+  end: null
+training:
+  epochs: 50
+  batch: 64
+  lr: 0.001
+  patience: 10
+  train_n: 8000
+  val_n: 1000
+  test_n: 1000
+models: [mlp, cnn1d]
+noise_kind: auto
+model:
+  latent_dim: 16
