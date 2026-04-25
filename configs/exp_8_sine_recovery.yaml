@@ -4,7 +4,7 @@ output_dir: results/exp_8_sine_recovery
 data:
   articles: ["Influenza", "Common_cold", "Fever", "Cough", "Christmas"]
   start: "2018-01-01"
-  end: null
+  end: "2026-04-20"
 noise_kind: auto
 checkpoint: auto
 n_realizations: 20

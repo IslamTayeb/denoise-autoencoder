@@ -1,10 +1,10 @@
 seed: 0
 window_len: 128
-output_dir: results/exp_3_arch
+output_dir: results/exp_4_latent
 data:
   articles: ["Influenza", "Common_cold", "Fever", "Cough", "Christmas"]
   start: "2018-01-01"
-  end: null
+  end: "2026-04-20"
 training:
   epochs: 50
   batch: 64
@@ -13,7 +13,7 @@ training:
   train_n: 8000
   val_n: 1000
   test_n: 1000
-models: [mlp, cnn1d]
 noise_kind: auto
 model:
-  latent_dim: 16
+  name: auto
+  latents: [4, 8, 16, 32, 64]

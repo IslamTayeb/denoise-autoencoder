@@ -4,7 +4,7 @@ output_dir: results/exp_5_noise_robustness
 data:
   articles: ["Influenza", "Common_cold", "Fever", "Cough", "Christmas"]
   start: "2018-01-01"
-  end: null
+  end: "2026-04-20"
 training:
   epochs: 50
   batch: 64

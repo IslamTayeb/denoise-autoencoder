@@ -8,10 +8,10 @@ End-to-end pipeline (this is the scientific story):
 2. **Fit a sine model** (dominant sinusoid + offset + optional linear trend) to each weekly series via least squares. Treat the fitted sine as the **ground-truth clean signal** for that series.
 3. **Compute residuals** `r = real - fitted` and characterize their distribution (std, kurtosis, sparsity, autocorrelation, run-length).
 4. **Fit each candidate noise model** (gaussian / masking / impulse) to those residuals by choosing parameters that make synthetic residuals match the observed distribution. **Rank** the noise models by goodness-of-fit.
-5. **Generate a synthetic training corpus**: sample sine-wave parameters from the fitted distribution to produce many clean windows; corrupt each window using the fitted noise models.
+5. **Generate a synthetic training corpus**: sample sine-wave parameters from the fitted distribution to produce many clean windows, then corrupt each window using the fitted noise models.
 6. **Train denoising autoencoders** (MLP, CNN1D, RNN) on the synthetic corpus.
-7. **Evaluate on synthetic test data** (MSE, SNR, SNR improvement — has true ground truth).
-8. **Real-world test**: apply the trained denoiser to actual Wikipedia weekly series; evaluate the reconstruction against the fitted sine as proxy ground truth. Report explicit caveat: the fitted sine is an approximation, not true ground truth.
+7. **Evaluate on synthetic test data** (MSE, SNR, SNR improvement, with true ground truth).
+8. **Real-world test**: apply the trained denoiser to actual Wikipedia weekly series, then evaluate the reconstruction against the fitted sine as proxy ground truth. Report an explicit caveat: the fitted sine is an approximation, not true ground truth.
 
 ## 1. Stack
 
@@ -25,7 +25,7 @@ End-to-end pipeline (this is the scientific story):
 ## 2. Repo Layout
 
 ```
-final_project/
+denoise-autoencoder/
 ├── README.md
 ├── requirements.txt
 ├── configs/
@@ -63,6 +63,7 @@ final_project/
 │   ├── run_5_noise_robustness.py
 │   ├── run_6_noise_levels.py
 │   ├── run_7_real_eval.py
+│   ├── run_8_sine_recovery.py
 │   └── run_all.py
 ├── results/
 │   ├── tables/
@@ -91,7 +92,7 @@ WIKI_DEFAULT_START = "2018-01-01"
 WIKI_DEFAULT_END = None        # None -> latest available
 ```
 
-Article choice rationale: each has a strong annual cycle (flu/cold articles peak in winter; "Christmas" peaks each December and is included as a positive control with very clean periodicity).
+Article choice rationale: each has a strong annual cycle (flu/cold articles peak in winter, and "Christmas" peaks each December and is included as a positive control with very clean periodicity).
 
 ## 4. Real Data (`src/data/wiki.py`)
 
@@ -123,7 +124,7 @@ y_hat[t] = c + m*t + A*sin(2π*f*t + φ)
 
 Procedure:
 1. Detrend with a least-squares linear fit to get residuals `y_d`.
-2. Estimate dominant frequency via real FFT of `y_d`; pick the bin with maximum magnitude excluding DC. Restrict search to `f ∈ [1/(2*T), 0.5]`.
+2. Estimate dominant frequency via real FFT of `y_d`, then pick the bin with maximum magnitude excluding DC. Restrict search to `f ∈ [1/(2*T), 0.5]`.
 3. Initialize `A0 = 2 * |Y[k_peak]| / T`, `φ0 = angle(Y[k_peak])`.
 4. Refine `(c, m, A, f, φ)` jointly with `scipy.optimize.curve_fit` (or `least_squares`), bounded so `f` stays within ±20% of the FFT estimate.
 5. Return the fitted parameters and the reconstructed `y_hat`.
@@ -144,7 +145,7 @@ def predict_sine(fit: SineFit, t: np.ndarray) -> np.ndarray
 def fit_all(df: pd.DataFrame) -> dict[str, SineFit]   # one fit per column
 ```
 
-Sanity: `period_weeks` should land near 52 for the flu/cold/Christmas articles. If it doesn't, log a warning — that article isn't a clean fit and should be flagged in the report.
+Sanity: `period_weeks` should land near 52 for the flu/cold/Christmas articles. If it does not, log a warning. That article is not a clean fit and should be flagged in the report.
 
 ## 6. Residual Characterization (`src/data/residuals.py`)
 
@@ -154,7 +155,7 @@ class ResidualStats:
     mean: float
     std: float
     skew: float
-    kurtosis: float          # excess kurtosis; gaussian -> 0, heavy-tailed -> >>0
+    kurtosis: float          # excess kurtosis, gaussian -> 0, heavy-tailed -> >>0
     fraction_outliers: float # |r| > 3*std
     fraction_near_zero: float # |r| < 0.05*std (proxy for masking-like dropouts)
     autocorr_lag1: float
@@ -207,7 +208,7 @@ def fit_impulse(residuals: np.ndarray, outlier_thresh: float = 3.0) -> ImpulseNo
     # magnitude_scale = mean |r| among spikes / std(clean signal estimate)
 ```
 
-Goodness-of-fit scoring — given observed residuals and a candidate noise model, generate synthetic residuals (apply the model to a zero signal, or to the fitted sines) and compare distributions:
+Goodness-of-fit scoring: given observed residuals and a candidate noise model, generate synthetic residuals (apply the model to a zero signal, or to the fitted sines) and compare distributions.
 ```python
 def score_noise_fit(observed_residuals: np.ndarray,
                     synthetic_residuals: np.ndarray) -> dict:
@@ -215,7 +216,7 @@ def score_noise_fit(observed_residuals: np.ndarray,
     #          "kurtosis_diff": ..., "std_ratio": ..., "near_zero_diff": ...}
 ```
 
-Selection — `select_best_noise(observed_residuals)` returns a ranking with parameters fitted per model and the score dict per model. **Lower Wasserstein distance is better; KS p-value is reported for transparency but not used as a hard gate.**
+Selection: `select_best_noise(observed_residuals)` returns a ranking with parameters fitted per model and the score dict per model. **Lower Wasserstein distance is better. KS p-value is reported for transparency but not used as a hard gate.**
 
 ## 8. Synthetic Dataset Generation (`src/data/synthetic.py`)
 
@@ -265,11 +266,11 @@ class DenoisingAutoencoder(nn.Module):
     def forward(self, x: Tensor) -> Tensor
 ```
 
-### `mlp.py` — `MLPAE`
+### `mlp.py`: `MLPAE`
 - Encoder: `Flatten` → `Linear(L, 256)` → `ReLU` → `Linear(256, 64)` → `ReLU` → `Linear(64, latent_dim)`
 - Decoder: `Linear(latent_dim, 64)` → `ReLU` → `Linear(64, 256)` → `ReLU` → `Linear(256, L)` → `Unflatten(1, (1, L))`
 
-### `cnn1d.py` — `CNN1DAE`
+### `cnn1d.py`: `CNN1DAE`
 - Encoder (`L=128`):
   - `Conv1d(1, 16, k=7, s=2, p=3)` → `ReLU`     # L/2
   - `Conv1d(16, 32, k=5, s=2, p=2)` → `ReLU`    # L/4
@@ -277,7 +278,7 @@ class DenoisingAutoencoder(nn.Module):
   - `Flatten` → `Linear(64 * L/8, latent_dim)`
 - Decoder mirrors with `ConvTranspose1d`, final `Conv1d(16, 1, k=1)`. Adjust output_padding so final length is exactly `L`.
 
-### `rnn.py` — `RNNAE`
+### `rnn.py`: `RNNAE`
 - Encoder: permute to `(B, L, 1)`, `GRU(1, 64, num_layers=1, batch_first=True)`, take final hidden, `Linear(64, latent_dim)`.
 - Decoder: `Linear(latent_dim, 64)`, repeat across time to `(B, L, 64)`, `GRU(64, 64, batch_first=True)`, `Linear(64, 1)`, permute to `(B, 1, L)`.
 
@@ -330,10 +331,10 @@ def build_pipeline_artifacts(cfg: dict) -> dict:
     # 1. Load Wikipedia weekly data (log-space).
     # 2. Fit sine per article, save SineFit dict to results/fits/sine_fits.pkl.
     # 3. Compute residuals per article, concatenate, save to results/fits/residuals.npy.
-    # 4. Fit each noise model to residuals; score; save to results/fits/noise_fits.json.
+    # 4. Fit each noise model to residuals, score it, and save to results/fits/noise_fits.json.
     # 5. Build SineFitDistribution.
     # 6. Return dict with: real_df, log_df, fits, residuals, residual_stats, noise_fits, distribution.
-    # Cache the whole bundle to results/fits/pipeline_artifacts.pkl on first call; reload on subsequent calls.
+    # Cache the whole bundle to results/fits/pipeline_artifacts.pkl on first call. Reload on subsequent calls.
 ```
 
 ## 14. Experiments
@@ -347,60 +348,68 @@ Each `experiments/run_*.py`:
 - Writes checkpoints to `results/checkpoints/<exp_name>/`.
 - Prints a summary line.
 
-### Exp 1 — `run_1_fit.py` — Sine fit + residual characterization
+### Exp 1: `run_1_fit.py` for sine fit and residual characterization
 - Load Wikipedia weekly data.
-- Fit sine per article; record `SineFit` and `ResidualStats`.
+- Fit sine per article, then record `SineFit` and `ResidualStats`.
 - Tables:
   - `sine_fits.csv`: `article, A, f, phi, m, c, period_weeks, r_squared`.
   - `residual_stats.csv`: `article, mean, std, skew, kurtosis, fraction_outliers, fraction_near_zero, autocorr_lag1, max_run_below_thresh`.
 - Figures (per article): `<article>_sine_fit.png` (real vs fitted overlay) and `<article>_residual_hist.png`.
 
-### Exp 2 — `run_2_noise_select.py` — Noise model selection
+### Exp 2: `run_2_noise_select.py` for noise model selection
 - Reuse Exp 1 artifacts (call `build_pipeline_artifacts` if not cached).
 - For each noise model, fit parameters to the pooled residuals.
-- Generate synthetic residuals at matched length; score against observed via `score_noise_fit`.
+- Generate synthetic residuals at matched length, then score against observed via `score_noise_fit`.
 - Table `noise_selection.csv`: `noise_kind, params_json, wasserstein, ks_stat, ks_pvalue, kurtosis_diff, std_ratio, near_zero_diff, rank`.
-- Figures: `residual_hist_overlay.png` (observed + each candidate distribution overlaid); QQ plot per candidate.
+- Figures: `residual_hist_overlay.png` (observed + each candidate distribution overlaid) and one QQ plot per candidate.
 - Print: `BEST_NOISE=<kind>` so downstream experiments can read it.
 
-### Exp 3 — `run_3_arch.py` — Architecture comparison (synthetic)
-- Use the **best** noise model from Exp 2 (config field `noise_kind: auto` reads from Exp 2 output; otherwise honor the explicit value).
+### Exp 3: `run_3_arch.py` for architecture comparison on synthetic data
+- Use the **best** noise model from Exp 2 (config field `noise_kind: auto` reads from Exp 2 output, otherwise honor the explicit value).
 - Build synthetic loaders from `SineFitDistribution`.
-- Train `mlp`, `cnn1d`, `rnn` with the same data and budget.
+- Train the models listed in the config with the same data and budget. The default config uses `mlp` and `cnn1d`. The repo also contains `rnn`.
 - Table `arch_comparison.csv`: `model, n_params, train_loss_final, val_loss_best, test_mse, snr_input_db, snr_output_db, snr_improvement_db, train_seconds`.
-- Figures: training-curve overlay; one triplet plot per model on the same test windows.
+- Figures: training-curve overlay and one triplet plot per model on the same test windows.
 
-### Exp 4 — `run_4_latent.py` — Latent dimension sweep
+### Exp 4: `run_4_latent.py` for the latent dimension sweep
 - Best architecture from Exp 3 (config field `model: auto` or explicit), best noise from Exp 2.
 - Latents: `[4, 8, 16, 32, 64]`.
 - Table `latent_sweep.csv`: `latent_dim, n_params, test_mse, snr_improvement_db`.
 - Figures: MSE vs latent_dim, SNR-improvement vs latent_dim.
 
-### Exp 5 — `run_5_noise_robustness.py` — Cross-noise robustness
+### Exp 5: `run_5_noise_robustness.py` for cross-noise robustness
 - Best architecture, latent=16.
 - Train one model per noise model in `{gaussian, masking, impulse}` using each model's fitted parameters from Exp 2.
 - Cross-evaluate every trained model on every test set (3×3).
 - Table `noise_robustness.csv`: `train_noise, eval_noise, test_mse, snr_improvement_db`.
 - Figure: 3×3 heatmap of `snr_improvement_db`.
 
-### Exp 6 — `run_6_noise_levels.py` — Generalization across noise levels
-- Best architecture + best noise model, trained at the fitted (real-data) intensity.
-- Define an `intensity_multiplier` sweep: `[0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]`. Apply to the fitted noise parameters (e.g., `sigma_eval = multiplier * sigma_fit`; `spike_rate_eval = multiplier * spike_rate_fit`, clamp ≤ 1.0; `seg_rate_eval = multiplier * seg_rate_fit`).
-- Train at multiplier=1.0; evaluate at all multipliers.
+### Exp 6: `run_6_noise_levels.py` for generalization across noise levels
+- Best architecture plus best noise model, trained at the fitted real-data intensity.
+- Define an `intensity_multiplier` sweep: `[0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]`. Apply it to the fitted noise parameters (e.g. `sigma_eval = multiplier * sigma_fit`, `spike_rate_eval = multiplier * spike_rate_fit` and clamp at 1.0, `seg_rate_eval = multiplier * seg_rate_fit`).
+- Train at multiplier=1.0, then evaluate at all multipliers.
 - Table `noise_levels.csv`: `intensity_multiplier, snr_input_db, snr_output_db, snr_improvement_db, test_mse`.
 - Figure: SNR-improvement vs multiplier with vertical line at multiplier=1.0.
 
-### Exp 7 — `run_7_real_eval.py` — Real-world test on Wikipedia data
+### Exp 7: `run_7_real_eval.py` for raw Wikipedia evaluation
 - Reuse Exp 1 artifacts (sine fits per article, full real series).
-- Reload the best architecture + best noise model checkpoint (from Exp 3 / Exp 5).
+- Reload the best architecture and best noise model checkpoint (from Exp 3 or Exp 5).
 - For each article:
   - Slide windows over the real log-pageview series with `stride=1`.
-  - Per-window z-score; run through the autoencoder; un-z-score.
+  - Per-window z-score, run through the autoencoder, then un-z-score.
   - Reconstitute the full series via overlap-average of window reconstructions.
   - Compare denoised series against the **fitted sine** as proxy ground truth, and against the **raw real series** as the noisy input.
 - Table `real_eval.csv`: per-article rows with `mse_recon_vs_sine, snr_db_recon_vs_sine, snr_improvement_db, std_residual_after_denoise`.
-- Figures (per article): single plot with three lines — raw real series, fitted sine, autoencoder reconstruction.
-- Print explicit caveat in summary: the fitted sine is an approximation to the true clean signal. SNR improvement here measures "did the autoencoder pull the real series toward the fitted sine," not "did it recover ground truth."
+- Figures (per article): single plot with three lines, raw real series, fitted sine, and autoencoder reconstruction.
+- Print an explicit caveat in the summary: the fitted sine is an approximation to the true clean signal. SNR improvement here measures "did the autoencoder pull the real series toward the fitted sine," not "did it recover ground truth."
+
+### Exp 8: `run_8_sine_recovery.py` for per-article sine recovery
+- Reuse the fitted sine for each article.
+- Add sampled noise at several intensity levels.
+- Denoise each noisy sine with the trained model.
+- Table `sine_recovery.csv`: per-article rows with `mse_recon_mean`, `snr_input_db_mean`, `snr_recon_db_mean`, `snr_improvement_db`, and `snr_db_clean_pass`.
+- Table `sine_recovery_levels.csv`: per-article rows across the intensity sweep.
+- Figures: per-article sine recovery plots and one heatmap of SNR improvement across intensities.
 
 ## 15. CLI
 
@@ -411,7 +420,7 @@ python experiments/run_1_fit.py --config configs/exp_1_fit.yaml --seed 0
 # ... etc.
 ```
 
-`experiments/run_all.py` invokes Exp 1 → 2 → 3 → 4 → 5 → 6 → 7 sequentially; exits non-zero on any failure. Each later experiment can read upstream artifacts/results, so order matters.
+`experiments/run_all.py` invokes Exp 1 through Exp 8 sequentially. It exits non-zero on any failure. Each later experiment can read upstream artifacts and results, so order matters.
 
 ## 16. Config Schema (YAML)
 
@@ -423,7 +432,7 @@ output_dir: results/exp_<name>
 data:
   articles: ["Influenza", "Common_cold", "Fever", "Cough", "Christmas"]
   start: "2018-01-01"
-  end: null
+  end: "2026-04-20"
 training:
   epochs: 50
   batch: 64
@@ -434,7 +443,7 @@ training:
 Per-experiment additions:
 ```yaml
 # exp_3_arch
-models: [mlp, cnn1d, rnn]
+models: [mlp, cnn1d]
 noise_kind: auto                # "auto" reads from results/tables/noise_selection.csv
 model:
   latent_dim: 16
@@ -468,28 +477,28 @@ checkpoint: results/checkpoints/exp_5_noise_robustness/<noise_kind>/best.pt
 
 ## 17. Tests (`tests/`, pytest, smoke-level)
 
-- `test_wiki.py`: fake the HTTP layer with a fixture; assert weekly resampling shape.
+- `test_wiki.py`: fake the HTTP layer with a fixture, then assert weekly resampling shape.
 - `test_sine_fit.py`: fit synthetic sine + noise, assert recovered `(A, f, phi)` within tolerance.
 - `test_residuals.py`: known synthetic noise produces expected `ResidualStats` ranges.
-- `test_noise.py`: shapes preserved; gaussian std grows with sigma; masking creates zero-runs of expected length; impulse adds outliers above threshold.
+- `test_noise.py`: shapes preserved, gaussian std grows with sigma, masking creates zero-runs of expected length, and impulse adds outliers above threshold.
 - `test_models.py`: each model accepts `(B, 1, L)`, returns same shape, gradients flow.
-- `test_eval.py`: `snr_db(clean, clean)` is large/finite; `snr_improvement` positive when recon is closer than noisy.
+- `test_eval.py`: `snr_db(clean, clean)` is large and finite. `snr_improvement` is positive when recon is closer than noisy.
 
 ## 18. README
 
 Single page covering:
 - Setup (`pip install -r requirements.txt`).
-- The seven-step pipeline (mirror section 0).
+- The eight-step pipeline (mirror section 0).
 - How to run each experiment.
 - Where outputs land.
 - Caveat for Exp 7: fitted sine is proxy ground truth, not real ground truth.
-- Citations: Wikimedia Pageviews API; CDC FluView for context on why these articles are seasonally relevant.
+- Citations: Wikimedia Pageviews API and CDC FluView for context on why these articles are seasonally relevant.
 
 ## 19. Acceptance Criteria
 
-A clean run of `python experiments/run_all.py` (with internet access for Exp 1 / 7) produces:
+A clean run of `python experiments/run_all.py` (with internet access for Exp 1 and Exp 7) produces:
 
-- 7 CSV tables in `results/tables/`.
+- The CSV tables listed in `results/tables/`.
 - All figures listed under each experiment in `results/figures/<exp_name>/`.
 - Trained checkpoints in `results/checkpoints/<exp_name>/`.
 - Cached Wikipedia JSON in `data_cache/`.

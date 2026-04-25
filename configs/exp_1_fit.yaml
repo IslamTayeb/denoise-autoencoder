@@ -1,7 +1,7 @@
 seed: 0
 window_len: 128
-output_dir: results/exp_2_noise_select
+output_dir: results/exp_1_fit
 data:
   articles: ["Influenza", "Common_cold", "Fever", "Cough", "Christmas"]
   start: "2018-01-01"
-  end: null
+  end: "2026-04-20"
