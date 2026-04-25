@@ -42,6 +42,8 @@ A denoising autoencoder learns to recover a clean signal from a corrupted input~
 
 We use weekly Wikipedia pageviews as a real 1D signal source. Disease-related pages on Wikipedia show strong seasonal structure~\citep{generous2014}. That structure makes them a good fit for this project. We model each series with a single sinusoid plus offset and trend. We then treat the fitted sinusoid as a proxy clean target.
 
+Supervised training itself uses synthetic windows sampled from the fitted signal and noise statistics, so the benchmark still has exact clean targets.
+
 This setup lets us study three related questions. First, can a proxy clean model estimated from real data support a useful synthetic denoising benchmark. Second, under that benchmark, how do a multilayer perceptron autoencoder and a one-dimensional convolutional autoencoder compare in accuracy and efficiency. Third, how robust is the selected model to changes in latent size, noise family, and noise intensity. We also ask how well it transfers back to the original Wikipedia series.
 
 The central tradeoff is clear from the start. Synthetic data gives a true target and clean metrics. Real data is more meaningful, but the target is only a proxy. The report keeps both views.
@@ -323,6 +325,10 @@ We built an end-to-end denoising autoencoder pipeline for 1D periodic signals. W
 The main caveat is the proxy clean target. On real data, the fitted sine is only an approximation. Even so, the pipeline gives a consistent picture. The synthetic benchmark is strong, the controlled sine recovery test is also strong, and the raw-series result is positive but more conservative.
 
 Code and report files are available at \url{https://github.com/IslamTayeb/denoise-autoencoder}.
+
+\subsubsection*{Acknowledgements}
+
+Both authors, Nikhil Pesaladinne and Islam Tayeb, contributed jointly to the code and the report. We used Claude Code to assist with writing the implementations.
 
 \bibliography{iclr2024_conference}
 \bibliographystyle{iclr2024_conference}
