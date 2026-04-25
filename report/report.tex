@@ -71,7 +71,7 @@ We initialize the frequency with a Hanning-windowed fast Fourier transform (FFT)
 
 Table~\ref{tab:sinefits} shows the fitted periods and coefficient-of-determination values ($R^2$). Four articles land near the expected one-year period. \texttt{Cough} is the exception. Its fitted period is about 301 weeks, so its proxy target is weaker than the others.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Per-article sine-fit summary in log space.}
 \label{tab:sinefits}
@@ -88,7 +88,7 @@ Christmas    & 52.1  & 0.554 & 0.897 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \begin{subfigure}{0.49\linewidth}
 \includegraphics[width=\linewidth]{exp_1_fit/Influenza_sine_fit.png}
@@ -143,7 +143,7 @@ We report
 
 Table~\ref{tab:noise} shows the fitted noise scores. Gaussian noise is the best match by Wasserstein distance. It also matches the residual standard deviation almost exactly; the fitted Gaussian standard deviation on the pooled residuals is $\sigma = 0.380$ in log-pageview space. The main weakness is tail fit. The real residuals are more heavy-tailed than a Gaussian.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Noise-model selection on pooled residuals. Lower Wasserstein is better.}
 \label{tab:noise}
@@ -158,7 +158,7 @@ Impulse  & 0.275          & 0.559          & 48.97  & 1.908 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \begin{subfigure}{0.58\linewidth}
 \includegraphics[width=\linewidth,trim=0.2in 0.15in 0.2in 0.15in,clip]{exp_2_noise_select/residual_hist_overlay.png}
@@ -173,11 +173,13 @@ Impulse  & 0.275          & 0.559          & 48.97  & 1.908 \\
 \label{fig:noise-diag}
 \end{figure}
 
+\FloatBarrier
+
 \subsection{Exp 3: Architecture Comparison}
 
 Table~\ref{tab:arch} compares the MLP and the 1D CNN on the synthetic benchmark. The 1D CNN is better on every main test metric. It improves SNR by 15.18 dB. The MLP improves SNR by 14.49 dB. The CNN also uses about half as many parameters. The price is training time. The CNN is much slower to train.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Architecture comparison on the synthetic test set.}
 \label{tab:arch}
@@ -191,18 +193,20 @@ CNN1D & \textbf{53{,}313}  & \textbf{0.00525} & \textbf{23.63} & \textbf{15.18} 
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.75\linewidth]{exp_3_arch/training_curves.png}
 \caption{Training and validation loss for the architecture comparison. Both models converge cleanly. The CNN reaches the lower final validation loss.}
 \label{fig:training}
 \end{figure}
 
+\FloatBarrier
+
 \subsection{Exp 4: Latent Dimension Sweep}
 
 Table~\ref{tab:latent} shows the latent sweep for the CNN. The big jump is from latent 4 to latent 8. The best test MSE is at latent 16. Latent 32 gives almost the same SNR improvement, but it is larger. We use latent 16 for the rest of the report.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Latent sweep for the 1D CNN.}
 \label{tab:latent}
@@ -219,13 +223,15 @@ Latent & Params & Test MSE & $\Delta$SNR \\
 \end{tabular}
 \end{table}
 
+\FloatBarrier
+
 \subsection{Exp 5 And Exp 6: Robustness To Noise Type And Noise Level}
 
 Cross-noise robustness shows a clear diagonal pattern. Each model works best on the same noise type it saw in training. The masking-trained and impulse-trained models do very well on matched noise, at 25.17 dB and 24.55 dB respectively. Their transfer is weaker. The worst case is masking-trained on impulse noise at $-2.14$ dB. The Gaussian-trained model is the most balanced. It gets 15.13 dB on Gaussian, 11.07 dB on masking, and 9.74 dB on impulse.
 
 Noise-level generalization is also strong. The CNN is trained at the fitted Gaussian level ($\sigma = 0.380$). From $0.75\times$ to $3.0\times$ that level, SNR improvement stays between 14.34 and 15.73 dB. Performance drops at $0.25\times$ because the input is already much cleaner.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \begin{subfigure}{0.48\linewidth}
 \includegraphics[width=\linewidth]{exp_5_noise_robustness/robustness_heatmap.png}
@@ -240,13 +246,15 @@ Noise-level generalization is also strong. The CNN is trained at the fitted Gaus
 \label{fig:generalization}
 \end{figure}
 
+\FloatBarrier
+
 \subsection{Exp 7: Raw Wikipedia Evaluation}
 
 This experiment works directly on the raw Wikipedia series. We slide 128-week windows with stride 1. We z-score each window, denoise it, undo the z-score, and overlap-average the window outputs back into one full series.
 
 We then compare the reconstruction to the fitted sine proxy. Table~\ref{tab:real-eval} shows the results. Improvement ranges from 2.27 to 8.06 dB. \texttt{Christmas} is the strongest case. \texttt{Cough} is the weakest. That is consistent with the earlier fit quality.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Raw Wikipedia evaluation against the fitted-sine proxy.}
 \label{tab:real-eval}
@@ -263,13 +271,15 @@ Christmas    & 0.0502 & \textbf{32.99} & 24.94 & \textbf{8.06} \\
 \end{tabular}
 \end{table}
 
+\FloatBarrier
+
 \subsection{Exp 8: Controlled Per-Article Sine Recovery}
 
 This experiment is the closest real-data match to the synthetic task. For each article, we take its fitted sine as the clean target. We add Gaussian noise at the fitted level ($\sigma = 0.380$). We then denoise it with the trained CNN. The mean improvement is 10.07 dB. The range is 8.91 to 11.93 dB.
 
 The clean-pass SNR is also strong. When we feed the clean fitted sine into the autoencoder, the mean SNR is 65.46 dB. That tells us the model adds very little distortion when the input is already clean.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Per-article sine recovery at the fitted Gaussian noise level ($\sigma = 0.380$).}
 \label{tab:sine-recovery}
@@ -291,7 +301,7 @@ Mean         & 0.0149          & 27.58          & 37.65          & 10.07        
 
 The intensity sweep is stable here too. Across all five articles, the improvement stays positive across the full $0.25\times$ to $3.0\times$ range. At $3.0\times$ noise, every article still gets at least 8.82 dB improvement.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \begin{subfigure}{0.49\linewidth}
 \includegraphics[width=\linewidth]{exp_8_sine_recovery/Influenza_sine_recovery.png}
