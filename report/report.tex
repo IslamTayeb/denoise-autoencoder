@@ -90,12 +90,13 @@ Christmas    & 52.1  & 0.554 & 0.897 \\
 
 \begin{figure}[!htbp]
 \centering
-\begin{subfigure}{0.49\linewidth}
+\begin{subfigure}{0.73\linewidth}
 \includegraphics[width=\linewidth]{exp_1_fit/Influenza_sine_fit.png}
 \caption{Influenza.}
 \end{subfigure}
-\hfill
-\begin{subfigure}{0.49\linewidth}
+
+\vspace{0.3em}
+\begin{subfigure}{0.73\linewidth}
 \includegraphics[width=\linewidth]{exp_1_fit/Christmas_sine_fit.png}
 \caption{Christmas.}
 \end{subfigure}
@@ -160,12 +161,12 @@ Impulse  & 0.275          & 0.559          & 48.97  & 1.908 \\
 
 \begin{figure}[!htbp]
 \centering
-\begin{subfigure}{0.58\linewidth}
+\begin{subfigure}[c]{0.58\linewidth}
 \includegraphics[width=\linewidth,trim=0.2in 0.15in 0.2in 0.15in,clip]{exp_2_noise_select/residual_hist_overlay.png}
 \caption{Residual histogram overlay.}
 \end{subfigure}
 \hfill
-\begin{subfigure}{0.38\linewidth}
+\begin{subfigure}[c]{0.38\linewidth}
 \includegraphics[width=\linewidth,trim=0.15in 0.15in 0.15in 0.15in,clip]{exp_2_noise_select/qq_gaussian.png}
 \caption{Gaussian Q-Q plot.}
 \end{subfigure}
@@ -195,7 +196,7 @@ CNN1D & \textbf{53{,}313}  & \textbf{0.00525} & \textbf{23.63} & \textbf{15.18} 
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.75\linewidth]{exp_3_arch/training_curves.png}
+\includegraphics[width=0.68\linewidth]{exp_3_arch/training_curves.png}
 \caption{Training and validation loss for the architecture comparison. Both models converge cleanly. The CNN reaches the lower final validation loss.}
 \label{fig:training}
 \end{figure}
@@ -233,12 +234,12 @@ Noise-level generalization is also strong. The CNN is trained at the fitted Gaus
 
 \begin{figure}[!htbp]
 \centering
-\begin{subfigure}{0.48\linewidth}
+\begin{subfigure}[c]{0.48\linewidth}
 \includegraphics[width=\linewidth]{exp_5_noise_robustness/robustness_heatmap.png}
 \caption{Cross-noise robustness.}
 \end{subfigure}
 \hfill
-\begin{subfigure}{0.48\linewidth}
+\begin{subfigure}[c]{0.48\linewidth}
 \includegraphics[width=\linewidth]{exp_6_noise_levels/snr_imp_vs_intensity.png}
 \caption{Noise-level generalization.}
 \end{subfigure}
@@ -303,12 +304,12 @@ The intensity sweep is stable here too. Across all five articles, the improvemen
 
 \begin{figure}[!htbp]
 \centering
-\begin{subfigure}{0.85\linewidth}
+\begin{subfigure}{0.73\linewidth}
 \includegraphics[width=\linewidth]{exp_8_sine_recovery/Influenza_sine_recovery.png}
 \caption{Controlled sine recovery (Exp 8).}
 \end{subfigure}
-\\[0.5em]
-\begin{subfigure}{0.85\linewidth}
+\\[0.3em]
+\begin{subfigure}{0.73\linewidth}
 \includegraphics[width=\linewidth]{exp_7_real_eval/Influenza_real_eval.png}
 \caption{Raw Wikipedia evaluation (Exp 7).}
 \end{subfigure}
