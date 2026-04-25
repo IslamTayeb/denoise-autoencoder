@@ -14,7 +14,9 @@ WIKI_DEFAULT_ARTICLES = ["Influenza", "Common_cold", "Fever", "Cough", "Christma
 WIKI_DEFAULT_START = "2018-01-01"
 WIKI_DEFAULT_END: str | None = None
 
-_USER_AGENT = "cs675-denoising-project/1.0 (educational; contact: nikhil.pesaladinne@duke.edu)"
+_USER_AGENT = (
+    "cs675-denoising-project/1.0 (educational; contact: nikhil.pesaladinne@duke.edu)"
+)
 _API_TEMPLATE = (
     "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/"
     "en.wikipedia/all-access/user/{article}/daily/{start}/{end}"
@@ -32,12 +34,19 @@ def _fmt_date(d: str | date | datetime) -> str:
 def _resolve_end(end: str | None) -> str:
     if end is not None:
         return end
-    yesterday = date.today() - timedelta(days=2)
-    return yesterday.strftime("%Y-%m-%d")
+    # Wikimedia pageview stats lag a day or so; step back 2 to be safe.
+    default_end = date.today() - timedelta(days=2)
+    return default_end.strftime("%Y-%m-%d")
 
 
-def _fetch_article_json(article: str, start: str, end: str, cache_dir: Path,
-                       max_retries: int = 3, backoff: float = 1.5) -> dict:
+def _fetch_article_json(
+    article: str,
+    start: str,
+    end: str,
+    cache_dir: Path,
+    max_retries: int = 3,
+    backoff: float = 1.5,
+) -> dict:
     cache_dir.mkdir(parents=True, exist_ok=True)
     safe_article = article.replace("/", "_")
     cache_path = cache_dir / f"wiki_{safe_article}_{start}_{end}.json"
@@ -67,7 +76,9 @@ def _fetch_article_json(article: str, start: str, end: str, cache_dir: Path,
         except requests.RequestException as e:
             last_err = e
             time.sleep(backoff ** (attempt + 1))
-    raise RuntimeError(f"failed to fetch {article} from Wikimedia after {max_retries} retries: {last_err}")
+    raise RuntimeError(
+        f"failed to fetch {article} from Wikimedia after {max_retries} retries: {last_err}"
+    )
 
 
 def _json_to_daily_series(data: dict, article: str) -> pd.Series:
@@ -100,7 +111,9 @@ def load_wiki_weekly(
     for article in articles:
         data = _fetch_article_json(article, start, end_resolved, cache_dir)
         daily = _json_to_daily_series(data, article)
-        weekly = daily.resample("W-MON", label="left", closed="left").sum().astype("float32")
+        weekly = (
+            daily.resample("W-MON", label="left", closed="left").sum().astype("float32")
+        )
         series_per_article[article] = weekly
     df = pd.concat(series_per_article, axis=1).dropna(how="any")
     df.index.name = "week"

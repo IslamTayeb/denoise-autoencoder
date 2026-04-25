@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import math
-from typing import Iterable
-
 import numpy as np
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
+
+from .train import _resolve_device
 
 _EPS = 1e-12
 _SNR_CLIP_DB = 100.0
@@ -44,16 +43,10 @@ def snr_improvement_db(clean, noisy, recon) -> float:
 
 
 @torch.no_grad()
-def evaluate(model: nn.Module, loader: DataLoader, device: str | torch.device | None = None) -> dict:
-    if device is None:
-        if torch.backends.mps.is_available():
-            device = torch.device("mps")
-        elif torch.cuda.is_available():
-            device = torch.device("cuda")
-        else:
-            device = torch.device("cpu")
-    else:
-        device = torch.device(device)
+def evaluate(
+    model: nn.Module, loader: DataLoader, device: str | torch.device | None = None
+) -> dict:
+    device = _resolve_device(device)
     model.to(device).eval()
 
     cleans, noisies, recons = [], [], []
@@ -78,17 +71,13 @@ def evaluate(model: nn.Module, loader: DataLoader, device: str | torch.device | 
 
 
 @torch.no_grad()
-def collect_examples(model: nn.Module, loader: DataLoader, n: int = 4,
-                     device: str | torch.device | None = None) -> list[dict]:
-    if device is None:
-        if torch.backends.mps.is_available():
-            device = torch.device("mps")
-        elif torch.cuda.is_available():
-            device = torch.device("cuda")
-        else:
-            device = torch.device("cpu")
-    else:
-        device = torch.device(device)
+def collect_examples(
+    model: nn.Module,
+    loader: DataLoader,
+    n: int = 4,
+    device: str | torch.device | None = None,
+) -> list[dict]:
+    device = _resolve_device(device)
     model.to(device).eval()
 
     examples: list[dict] = []
@@ -97,11 +86,13 @@ def collect_examples(model: nn.Module, loader: DataLoader, n: int = 4,
         clean = clean.to(device)
         recon = model(noisy)
         for i in range(noisy.size(0)):
-            examples.append({
-                "clean": clean[i, 0].detach().cpu().numpy(),
-                "noisy": noisy[i, 0].detach().cpu().numpy(),
-                "recon": recon[i, 0].detach().cpu().numpy(),
-            })
+            examples.append(
+                {
+                    "clean": clean[i, 0].detach().cpu().numpy(),
+                    "noisy": noisy[i, 0].detach().cpu().numpy(),
+                    "recon": recon[i, 0].detach().cpu().numpy(),
+                }
+            )
             if len(examples) >= n:
                 return examples
     return examples
